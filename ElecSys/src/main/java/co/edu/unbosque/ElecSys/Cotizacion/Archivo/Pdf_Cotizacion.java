@@ -6,7 +6,6 @@ import co.edu.unbosque.ElecSys.LugarTrabajo.DTOLug.LugarTrabajoDTO;
 import co.edu.unbosque.ElecSys.Usuario.Cliente.DTOClie.ClienteDTO;
 import com.itextpdf.text.Document;
 import com.itextpdf.text.PageSize;
-import com.itextpdf.text.Paragraph;
 import com.itextpdf.text.pdf.PdfWriter;
 import com.itextpdf.text.DocumentException;
 import org.springframework.stereotype.Service;
@@ -17,8 +16,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -82,13 +79,6 @@ public class Pdf_Cotizacion {
 
         if (Files.exists(rutaArchivo)) {
             System.out.println("Ya existe un archivo con el mismo nombre: " + rutaArchivo);
-//            String timestamp = LocalDateTime.now()
-//                    .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-//            String nuevoNombre = cotizacionDTO.getId_cotizacion()
-//                    + ".Cotizacion_" + cotizacionDTO.getReferencia().replaceAll("\\s+", "_")
-//                    + "_" + timestamp + ".pdf";
-//            rutaArchivo = carpetaAnual.resolve(nuevoNombre);
-//            System.out.println(" Se generó con un nombre alternativo: " + nuevoNombre);
         }
 
         Files.write(rutaArchivo, pdf);

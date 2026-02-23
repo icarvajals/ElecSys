@@ -1,6 +1,5 @@
 package co.edu.unbosque.ElecSys.CuentaPorPagar.ServicioCuen;
 
-import co.edu.unbosque.ElecSys.AutenticacionSeguridad.SeguridadAut.CryptoUtil;
 import co.edu.unbosque.ElecSys.CuentaPorPagar.DTOCuen.CuentaPorPagarDTO;
 import co.edu.unbosque.ElecSys.CuentaPorPagar.EntidadCuen.CuentaPorPagarEntidad;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,20 +16,22 @@ public class CuentaPorPagarImplService implements CuentaPorPagarInterface{
     private CuentasPorPagarRepository cuentasPorPagarRepository;
 
     @Override
-    public String agregarCuentaPagar(CuentaPorPagarDTO cuenta) {
+    public CuentaPorPagarDTO agregarCuentaPagar(CuentaPorPagarDTO cuenta) {
         CuentaPorPagarEntidad nuevaCuenta = new CuentaPorPagarEntidad(
-          cuenta.getId_cuenta_pagar(),
+          null,
           cuenta.getId_trabajador(),
-                CryptoUtil.encriptar(cuenta.getDescripcion()),
+          cuenta.getId_cliente(),
+          cuenta.getNota(),
           cuenta.getFecha_realizacion(),
           cuenta.getMonto(),
           cuenta.getEstado()
         );
         try{
-            cuentasPorPagarRepository.save(nuevaCuenta);
-            return "Cuenta Creada Correctamente";
+            CuentaPorPagarEntidad cuentaGuardada = cuentasPorPagarRepository.save(nuevaCuenta);
+            cuenta.setId_cuenta_pagar(cuentaGuardada.getId_cuenta_pagar());
+            return cuenta;
         } catch (Exception e) {
-            return "Error al crear Cuenta " + e.getMessage();
+            return null;
         }
     }
 
@@ -53,7 +54,8 @@ public class CuentaPorPagarImplService implements CuentaPorPagarInterface{
             cuentaPorPagarDTOS.add(new CuentaPorPagarDTO(
                     cuentas.getId_cuenta_pagar(),
                     cuentas.getId_trabajador(),
-                    CryptoUtil.desencriptar(cuentas.getDescripcion()),
+                    cuentas.getId_cliente(),
+                    cuentas.getNota(),
                     cuentas.getFecha_realizacion(),
                     cuentas.getMonto(),
                     cuentas.getEstado()
@@ -72,8 +74,9 @@ public class CuentaPorPagarImplService implements CuentaPorPagarInterface{
         }else {
             CuentaPorPagarEntidad entidad = cuentaExit.get();
 
+            entidad.setId_cliente(cuentaPorPagarDTO.getId_cliente());
             entidad.setId_trabajador(cuentaPorPagarDTO.getId_trabajador());
-            entidad.setDescripcion(CryptoUtil.encriptar(cuentaPorPagarDTO.getDescripcion()));
+            entidad.setNota(cuentaPorPagarDTO.getNota());
             entidad.setFecha_realizacion(cuentaPorPagarDTO.getFecha_realizacion());
             entidad.setMonto(cuentaPorPagarDTO.getMonto());
             entidad.setEstado(cuentaPorPagarDTO.getEstado());
@@ -94,7 +97,7 @@ public class CuentaPorPagarImplService implements CuentaPorPagarInterface{
         Optional<CuentaPorPagarEntidad> cuentaOpt = cuentasPorPagarRepository.findById(id);
 
         if (cuentaOpt.isEmpty()) {
-            return null; // El controlador se encargará de lanzar la excepción
+            return null;
         }
 
         CuentaPorPagarEntidad c = cuentaOpt.get();
@@ -102,7 +105,8 @@ public class CuentaPorPagarImplService implements CuentaPorPagarInterface{
         return new CuentaPorPagarDTO(
                 c.getId_cuenta_pagar(),
                 c.getId_trabajador(),
-                CryptoUtil.desencriptar(c.getDescripcion()),
+                c.getId_cliente(),
+                c.getNota(),
                 c.getFecha_realizacion(),
                 c.getMonto(),
                 c.getEstado()

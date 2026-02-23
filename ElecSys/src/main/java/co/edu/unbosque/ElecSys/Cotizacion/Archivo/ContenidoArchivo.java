@@ -11,6 +11,7 @@ import com.itextpdf.text.pdf.draw.LineSeparator;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.net.URL;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 
@@ -45,35 +46,64 @@ public class ContenidoArchivo {
         documento.add(new Chunk(linea));
     }
 
-    public void dirigidoCotizacion(Document documento, CotizacionDTO cotizacionDTO, ClienteDTO clienteDTO, LugarTrabajoDTO lugar) throws DocumentException {
+    public void dirigidoCotizacion(Document documento,
+                                   CotizacionDTO cotizacionDTO,
+                                   ClienteDTO clienteDTO,
+                                   LugarTrabajoDTO lugar) throws DocumentException, IOException {
+
         Font fontNormal = new Font(Font.FontFamily.HELVETICA, 10, Font.NORMAL);
         Font fontBold = new Font(Font.FontFamily.HELVETICA, 11, Font.BOLD);
 
-        // para el encabezado de la fecha
-        Paragraph fecha = new Paragraph("Bogotá D.C., " + cotizacionDTO.getFecha_realizacion(), new Font(Font.FontFamily.HELVETICA, 10));
+        // 📅 Fecha
+        Paragraph fecha = new Paragraph(
+                "Bogotá D.C., " + cotizacionDTO.getFecha_realizacion(),
+                fontNormal
+        );
         fecha.setSpacingBefore(7);
         fecha.setSpacingAfter(10);
         documento.add(fecha);
 
-        // --- Información del cliente con sangría
-        Paragraph clienteInfo = new Paragraph("Señores:\n", fontNormal);
+        PdfPTable tablaHeader = new PdfPTable(2);
+        tablaHeader.setWidthPercentage(100);
+        tablaHeader.setWidths(new float[]{70, 30});
 
-        clienteInfo.setIndentationLeft(40f); // sangría a la derecha (como tab)
+        // ===== COLUMNA IZQUIERDA (cliente)
+        Paragraph clienteInfo = new Paragraph("Señores:\n", fontNormal);
         clienteInfo.add(new Phrase(clienteDTO.getNombre().toUpperCase() + "\n", fontBold));
         clienteInfo.add(new Phrase(lugar.getNombreLugar().toUpperCase(), fontBold));
-        clienteInfo.setSpacingAfter(15);
-        documento.add(clienteInfo);
 
+        PdfPCell cellCliente = new PdfPCell(clienteInfo);
+        cellCliente.setBorder(Rectangle.NO_BORDER);
+        cellCliente.setPaddingLeft(40f);
+
+        // ===== COLUMNA DERECHA (logo)
+        Image logo = Image.getInstance("src/main/resources/static/LogoEmpresa.jpeg"); // 🔥 AJUSTA ESTA RUTA
+        logo.scaleToFit(120, 90);
+        logo.setAlignment(Image.ALIGN_RIGHT);
+
+        PdfPCell cellLogo = new PdfPCell(logo);
+        cellLogo.setBorder(Rectangle.NO_BORDER);
+        cellLogo.setHorizontalAlignment(Element.ALIGN_RIGHT);
+
+        // agregar a tabla
+        tablaHeader.addCell(cellCliente);
+        tablaHeader.addCell(cellLogo);
+
+        tablaHeader.setSpacingAfter(15);
+        documento.add(tablaHeader);
+
+        // ===== Ciudad
         Paragraph ciudad = new Paragraph("Ciudad", fontNormal);
         ciudad.setSpacingAfter(5);
         documento.add(ciudad);
 
-        // --- Referencia centrada
+        // ===== Referencia centrada
         Paragraph ref = new Paragraph("Ref. " + cotizacionDTO.getReferencia(), fontBold);
-        ref.setAlignment(Element.ALIGN_CENTER); // centrado
+        ref.setAlignment(Element.ALIGN_CENTER);
         ref.setSpacingAfter(11);
         documento.add(ref);
 
+        // ===== Saludo
         Paragraph saludo = new Paragraph(
                 "Cordial saludo.\nA continuación, someto a su consideración la siguiente cotización:",
                 fontNormal
@@ -86,6 +116,7 @@ public class ContenidoArchivo {
         // Definir fuentes
         Font fontHeader = new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD);
         Font fontBody = new Font(Font.FontFamily.HELVETICA, 10, Font.NORMAL);
+        Font fontHeaderWhite = new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, BaseColor.WHITE);
 
         // Crear tabla con 5 columnas
         PdfPTable tabla = new PdfPTable(5);
@@ -95,15 +126,16 @@ public class ContenidoArchivo {
         tabla.setSpacingAfter(10f);
 
 // 🎨 COLOR DE ENCABEZADO PERSONALIZADO (gris)
-        BaseColor headerColor = new BaseColor(210, 210, 210);
+        BaseColor headerColor = new BaseColor(164, 0, 0);
 
         String[] headers = {"Ítem", "Descripción", "Cantidad", "Valor Unitario", "Subtotal"};
         for (String h : headers) {
-            PdfPCell cell = new PdfPCell(new Phrase(h, fontHeader));
+            PdfPCell cell = new PdfPCell(new Phrase(h, fontHeaderWhite));
             cell.setHorizontalAlignment(Element.ALIGN_CENTER);
             cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
             cell.setBackgroundColor(headerColor);
-            cell.setPadding(6);
+            cell.setPadding(7);
+            cell.setBorder(Rectangle.NO_BORDER);
             tabla.addCell(cell);
         }
 
@@ -118,8 +150,9 @@ public class ContenidoArchivo {
             // Descripción (alineada a la izquierda)
             PdfPCell descCell = new PdfPCell(new Phrase(detalle.getDescripcion(), fontBody));
             descCell.setHorizontalAlignment(Element.ALIGN_LEFT);
-            descCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
-            descCell.setPadding(5);
+            descCell.setVerticalAlignment(Element.ALIGN_TOP); // 🔥 clave
+            descCell.setPadding(6);
+            descCell.setNoWrap(false); // 🔥 permite salto bonito
             tabla.addCell(descCell);
 
             // Cantidad
@@ -130,13 +163,15 @@ public class ContenidoArchivo {
 
             // Valor unitario
             PdfPCell valUniCell = new PdfPCell(new Phrase(formatoMoneda(detalle.getValor_unitario()), fontBody));
-            valUniCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+            valUniCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            valUniCell.setPadding(5);
             valUniCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
             tabla.addCell(valUniCell);
 
             // Subtotal
             PdfPCell subCell = new PdfPCell(new Phrase(formatoMoneda(detalle.getSubtotal()), fontBody));
-            subCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+            subCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            subCell.setPadding(5);
             subCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
             tabla.addCell(subCell);
         }
@@ -147,44 +182,60 @@ public class ContenidoArchivo {
     public void tablaTotales(Document documento, CotizacionDTO cot) throws DocumentException {
 
         PdfPTable tabla = new PdfPTable(2);
-        tabla.setWidthPercentage(32); // más compacto
+        tabla.setWidthPercentage(40); //
         tabla.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        tabla.setSpacingBefore(10f);
+        tabla.setWidths(new float[]{65f, 35f}); //  mejora visual
 
         Font fBold = new Font(Font.FontFamily.HELVETICA, 9, Font.BOLD);
         Font fGray = new Font(Font.FontFamily.HELVETICA, 9, Font.NORMAL, new BaseColor(60,60,60));
 
-        BaseColor grisSuave = new BaseColor(235,235,235);
-
         addRow(tabla, "SUBTOTAL", cot.getValor_total(), fBold, fGray, false);
 
         if(cot.getAdministracion()!=null)
-            addRow(tabla, "ADMINISTRACIÓN 7%", cot.getAdministracion(), fBold, fGray, false);
+            addRow(tabla, "ADMINISTRACIÓN ", cot.getAdministracion(), fBold, fGray, false);
 
         if(cot.getImprevistos()!=null)
-            addRow(tabla, "IMPREVISTOS 5%", cot.getImprevistos(), fBold, fGray, false);
+            addRow(tabla, "IMPREVISTOS", cot.getImprevistos(), fBold, fGray, false);
 
         if(cot.getUtilidad()!=null)
-            addRow(tabla, "UTILIDADES 4%", cot.getUtilidad(), fBold, fGray, false);
+            addRow(tabla, "UTILIDADES", cot.getUtilidad(), fBold, fGray, false);
 
         if(cot.getIva()!=null && cot.getIva().compareTo(BigDecimal.ZERO)>0)
             addRow(tabla, "IVA 19%", cot.getIva(), fBold, fGray, false);
 
-        // TOTAL destacado
         addRow(tabla, "TOTAL", cot.getTotal_pagar(), fBold, fGray, true);
 
         documento.add(tabla);
     }
 
 
-    private void addRow(PdfPTable tabla, String label, BigDecimal value, Font fBold, Font fGray, boolean esTotal) {
-        PdfPCell c1 = new PdfPCell(new Phrase(label, fBold));
-        PdfPCell c2 = new PdfPCell(new Phrase(formatoMoneda(value), fBold));
+    private void addRow(PdfPTable tabla, String label, BigDecimal value,
+                        Font fBold, Font fGray, boolean esTotal) {
+
+        BaseColor rojoCorporativo = new BaseColor(164, 0, 0);
+        BaseColor grisBorde = new BaseColor(220,220,220);
+
+        PdfPCell c1 = new PdfPCell(new Phrase(label, esTotal ?
+                new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, BaseColor.WHITE) : fBold));
+
+        PdfPCell c2 = new PdfPCell(new Phrase(formatoMoneda(value), esTotal ?
+                new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, BaseColor.WHITE) : fBold));
+
+        c1.setPadding(6);
+        c2.setPadding(6);
+
         c1.setHorizontalAlignment(Element.ALIGN_LEFT);
         c2.setHorizontalAlignment(Element.ALIGN_RIGHT);
 
         if(esTotal){
-            c1.setBorderWidth(1.3f);
-            c2.setBorderWidth(1.3f);
+            c1.setBackgroundColor(rojoCorporativo);
+            c2.setBackgroundColor(rojoCorporativo);
+            c1.setBorder(Rectangle.NO_BORDER);
+            c2.setBorder(Rectangle.NO_BORDER);
+        } else {
+            c1.setBorderColor(grisBorde);
+            c2.setBorderColor(grisBorde);
         }
 
         tabla.addCell(c1);
@@ -212,7 +263,6 @@ public class ContenidoArchivo {
         com.itextpdf.text.List lista = new com.itextpdf.text.List(com.itextpdf.text.List.ORDERED);
         lista.setSymbolIndent(12);
 
-        lista.add(new ListItem("Si se desea realizar opciones de cámaras, datos y aumento de carga, se añadirá al subtotal.", fontTexto));
         lista.add(new ListItem("Las reformas se cobrarán como adicional dependiendo del ítem correspondiente.", fontTexto));
         lista.add(new ListItem("Todo el presupuesto está cotizado con las especificaciones de cada ítem.", fontTexto));
         lista.add(new ListItem("El material suministrado cuenta con certificación RETIE, RETLAP y CIDET.", fontTexto));
@@ -231,20 +281,58 @@ public class ContenidoArchivo {
     }
 
     public void seccionFirma(Document documento) throws DocumentException, IOException {
-        Font fBold = new Font(Font.FontFamily.HELVETICA, 9, Font.BOLD);
-        Font fNormal = new Font(Font.FontFamily.HELVETICA, 8);
+        Font bold = new Font(Font.FontFamily.HELVETICA, 12, Font.BOLD);
+        Font normal = new Font(Font.FontFamily.HELVETICA, 11);
 
-        Paragraph firma = new Paragraph();
-        firma.setSpacingBefore(10); // <-- reducido
-        firma.setSpacingAfter(2);
+        Paragraph cordial = new Paragraph("Cordialmente:", bold);
+        cordial.setSpacingBefore(28);
+        cordial.setSpacingAfter(20);
+        documento.add(cordial);
 
-        firma.add(new Phrase("Atentamente.\n\n", fNormal));
-        firma.add(new Phrase("___________________________________\n", fNormal));
-        firma.add(new Phrase("VC ELECTRICOS CONSTRUCCIONES S.A.S.\n", fBold));
-        firma.add(new Phrase("VICTOR JULIO CARVAJAL RINCON\n", fBold));
-        firma.add(new Phrase("Representante legal\n", fNormal));
+        // Tabla contenedora de firma
+        PdfPTable tablaFirma = new PdfPTable(1);
+        tablaFirma.setWidthPercentage(40); // ancho del bloque
+        tablaFirma.setHorizontalAlignment(Element.ALIGN_LEFT);
 
-        documento.add(firma);
+        // ===== IMAGEN =====
+        URL resource = Thread.currentThread()
+                .getContextClassLoader()
+                .getResource("static/FirmaVictor.png");
+
+        if (resource == null) {
+            throw new RuntimeException("No se encontró la imagen");
+        }
+
+        Image firma = Image.getInstance(resource);
+        firma.scaleToFit(120, 60);
+
+        PdfPCell celdaImagen = new PdfPCell(firma);
+        celdaImagen.setBorder(Rectangle.NO_BORDER);
+        celdaImagen.setHorizontalAlignment(Element.ALIGN_CENTER);
+        tablaFirma.addCell(celdaImagen);
+
+        // ===== LÍNEA =====
+        PdfPCell celdaLinea = new PdfPCell();
+        celdaLinea.setBorder(Rectangle.TOP);
+        celdaLinea.setFixedHeight(10);
+        celdaLinea.setBorderWidthTop(1f);
+        tablaFirma.addCell(celdaLinea);
+
+        // ===== NOMBRE =====
+        PdfPCell celdaNombre = new PdfPCell(
+                new Phrase("Víctor Julio Carvajal Rincón", bold));
+        celdaNombre.setBorder(Rectangle.NO_BORDER);
+        celdaNombre.setHorizontalAlignment(Element.ALIGN_LEFT);
+        tablaFirma.addCell(celdaNombre);
+
+        // ===== CARGO =====
+        PdfPCell celdaCargo = new PdfPCell(
+                new Phrase("Representante legal", normal));
+        celdaCargo.setBorder(Rectangle.NO_BORDER);
+        celdaCargo.setHorizontalAlignment(Element.ALIGN_LEFT);
+        tablaFirma.addCell(celdaCargo);
+
+        documento.add(tablaFirma);
     }
 
     public void pieDePagina(Document documento) throws DocumentException {
